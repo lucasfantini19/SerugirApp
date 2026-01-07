@@ -1,35 +1,72 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function Genere() {
+  const generos = ["Rock","Pop","Hip-Hop","Jazz","Clásica","Electrónica","Folk","Reggae","Urbano","Metal"];
+  const [clickedSet, setClickedSet] = useState(() => new Set());
+
+  const [track, setTrack] = useState(null);
+  const [loadingGenero, setLoadingGenero] = useState(null);
+  const [error, setError] = useState("");
+
+  const toggle = (i) => {
+    setClickedSet(prev => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+  };
+
+  async function pedirCancion(genero) {
+    setError("");
+    setTrack(null);
+    setLoadingGenero(genero);
+
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/lastfm/random?genre=${encodeURIComponent(genero)}`);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data?.detail || "Error pidiendo canción");
+
+      setTrack(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoadingGenero(null);
+    }
+  }
+
+  const handleClick = (genero, index) => {
+    toggle(index);
+    pedirCancion(genero);
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
+    <div className="card">
+      {generos.map((genero, index) => (
+        <button
+          key={index}
+          onClick={() => handleClick(genero, index)}
+          style={{ color: clickedSet.has(index) ? "green" : "black" }}
+          disabled={loadingGenero === genero}
+        >
+          {loadingGenero === genero ? "Buscando..." : genero}
         </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+      ))}
 
-export default App
+      <div style={{ marginTop: 16 }}>
+        {error && <div style={{ color: "red" }}>{error}</div>}
+        {track && (
+          <div>
+            <div><b>{track.name}</b> — {track.artist}</div>
+            {track.url && (
+              <a href={track.url} target="_blank" rel="noreferrer">
+                Ver en Last.fm
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
